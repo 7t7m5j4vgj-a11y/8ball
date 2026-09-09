@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>8-Ball Oracle</title>
+<style>
+:root{
+  --bg:#0a0d12; --panel:#10151d; --line:#29313d; --text:#f3f6fb;
+  --muted:#8e99aa; --blue:#1f63ff; --blue2:#1239b8;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:
+    radial-gradient(circle at 50% 36%,rgba(33,74,150,.20),transparent 28%),
+    radial-gradient(circle at 50% 100%,rgba(20,38,75,.18),transparent 35%),
+    var(--bg);
+  display:flex; justify-content:center;
+}
+.app{width:min(920px,94vw); padding:42px 0 52px; text-align:center}
+h1{font-size:clamp(30px,5vw,56px);letter-spacing:.18em;margin:0 0 8px;font-weight:500}
+.sub{color:var(--muted);font-size:17px;margin-bottom:30px}
+.ball-wrap{height:470px;display:grid;place-items:center;perspective:900px}
+.ball{
+  width:min(410px,70vw);aspect-ratio:1;border-radius:50%;position:relative;
+  background:
+    radial-gradient(circle at 32% 23%,rgba(255,255,255,.16),transparent 8%),
+    radial-gradient(circle at 35% 30%,#252a31 0,#090a0d 28%,#020305 65%,#11151b 100%);
+  box-shadow:inset -28px -35px 55px rgba(0,0,0,.85), inset 12px 14px 30px rgba(255,255,255,.06),
+             0 35px 65px rgba(0,0,0,.55);
+  transform-style:preserve-3d; transition:transform .35s ease;
+}
+.ball.shake{animation:shake .75s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{
+  10%,90%{transform:translateX(-8px) rotate(-2deg)}
+  20%,80%{transform:translateX(12px) rotate(3deg)}
+  30%,50%,70%{transform:translateX(-16px) rotate(-4deg)}
+  40%,60%{transform:translateX(16px) rotate(4deg)}
+}
+.eight{
+  position:absolute;top:11%;left:50%;transform:translateX(-50%);
+  width:30%;aspect-ratio:1.35;border-radius:50%;
+  background:#e9edf2;color:#050608;display:grid;place-items:center;
+  font-weight:900;font-size:clamp(45px,9vw,76px);
+  box-shadow:0 5px 15px rgba(0,0,0,.55),inset 0 2px 5px rgba(255,255,255,.6)
+}
+.window{
+  position:absolute;left:50%;top:53%;transform:translate(-50%,-50%);
+  width:48%;aspect-ratio:1;border-radius:50%;
+  background:#02050b;box-shadow:inset 0 0 0 5px #0c1119,inset 0 0 30px #000,0 2px 10px #000;
+  display:grid;place-items:center;overflow:hidden;
+}
+.triangle{
+  width:78%;height:68%;clip-path:polygon(50% 100%,0 0,100% 0);
+  background:linear-gradient(#1e5fff,#0b2ca8);
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  padding:20px 24px 40px;filter:drop-shadow(0 0 10px rgba(25,90,255,.3));
+  font-weight:650;font-size:clamp(12px,2.2vw,18px);line-height:1.25;
+}
+.controls{display:flex;gap:12px;max-width:760px;margin:0 auto}
+input{
+  flex:1;background:rgba(12,17,24,.88);border:1px solid var(--line);border-radius:14px;
+  padding:18px 20px;color:var(--text);font-size:17px;outline:none;
+}
+input:focus{border-color:#3c6fe9;box-shadow:0 0 0 3px rgba(31,99,255,.12)}
+button{
+  border:0;border-radius:14px;background:linear-gradient(135deg,#3479ff,#1852d8);
+  color:white;font-size:17px;font-weight:700;padding:0 34px;cursor:pointer;
+  box-shadow:0 8px 25px rgba(31,99,255,.22);transition:.2s;
+}
+button:hover{transform:translateY(-1px);filter:brightness(1.08)}
+button:active{transform:translateY(1px)}
+.note{color:#667184;font-size:14px;margin-top:20px;line-height:1.5}
+.history{max-width:760px;margin:30px auto 0;text-align:left}
+.history h2{font-size:14px;text-transform:uppercase;letter-spacing:.12em;color:#6e7a8c}
+.item{padding:12px 0;border-bottom:1px solid #1b222c}
+.q{color:#b9c2cf;font-size:14px}.a{font-weight:650;margin-top:4px}
+@media(max-width:600px){
+  .app{padding-top:28px}.ball-wrap{height:390px}.controls{flex-direction:column}
+  button{height:56px}.ball{width:290px}.sub{font-size:15px}
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <h1>8-BALL ORACLE</h1>
+  <div class="sub">Stelle eine Frage und finde deine Antwort …</div>
+
+  <div class="ball-wrap">
+    <div class="ball" id="ball">
+      <div class="eight">8</div>
+      <div class="window">
+        <div class="triangle" id="answer">Stell eine Frage.</div>
+      </div>
+    </div>
+  </div>
+
+  <form class="controls" id="form">
+    <input id="question" autocomplete="off" placeholder="Stelle deine Frage …">
+    <button type="submit">Fragen</button>
+  </form>
+  <div class="note">Die Antworten sind zufällig – aber vielleicht genau das, was du gerade brauchst.</div>
+
+  <section class="history" id="history" hidden>
+    <h2>Letzte Antworten</h2>
+    <div id="list"></div>
+  </section>
+</main>
+
+<script>
+const answers=[
+ "Ja, definitiv.","Es ist sehr wahrscheinlich.","Die Zeichen stehen gut.",
+ "Darauf kannst du zählen.","Ohne Zweifel.","Sieht vielversprechend aus.",
+ "Frag später noch einmal.","Konzentriere dich auf die Frage.",
+ "Das kann ich gerade nicht sagen.","Vielleicht.",
+ "Eher nicht.","Die Aussichten sind nicht besonders gut.",
+ "Sehr unwahrscheinlich.","Nein.","Meine Antwort ist: Nein.",
+ "Verlass dich lieber nicht darauf."
+];
+const form=document.querySelector('#form'), input=document.querySelector('#question');
+const ball=document.querySelector('#ball'), answer=document.querySelector('#answer');
+const history=document.querySelector('#history'), list=document.querySelector('#list');
+
+function ask(){
+  const q=input.value.trim();
+  if(!q){input.focus();return}
+  ball.classList.remove('shake'); void ball.offsetWidth; ball.classList.add('shake');
+  answer.style.opacity=0;
+  setTimeout(()=>{
+    const a=answers[Math.floor(Math.random()*answers.length)];
+    answer.textContent=a; answer.style.opacity=1;
+    history.hidden=false;
+    const row=document.createElement('div'); row.className='item';
+    row.innerHTML='<div class="q"></div><div class="a"></div>';
+    row.querySelector('.q').textContent=q;
+    row.querySelector('.a').textContent=a;
+    list.prepend(row);
+    while(list.children.length>5) list.lastChild.remove();
+  },700);
+}
+form.addEventListener('submit',e=>{e.preventDefault();ask()});
+</script>
+</body>
+</html>
